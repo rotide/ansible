@@ -1,0 +1,76 @@
+---
+- name: "DEPLOY: ShadowSocks"
+  hosts: docker_shadowsocks
+
+  vars:
+    hostname: racknerd-01
+    container_name: shadowsocks
+    base_dir: /home/rotide
+    docker_dir: "{{ base_dir }}/docker-{{ container_name }}"
+    backup_dir: "{{ base_dir }}/backups/{{ hostname }}/docker-{{ container_name}}"
+    config_dir: "{{ base_dir }}/configs/{{ hostname }}/"
+
+  tasks:
+  # Check if Docker is Installed
+  - name: "APT: Get Installed Packages"
+    package_facts:
+      manager: apt
+
+  # Install Docker (if not already installed)
+  - name: "INSTALL: Docker [Skip if Installed]"
+    include_tasks:
+      file: include_install_docker.yml
+    when: "'docker-ce' not in ansible_facts.packages"
+
+  # Docker: Check if container is running
+  - name: "DOCKER: Check if containers are running"
+    become: yes
+    docker_container_info:
+      name: "{{ container_name }}"
+    register: result
+
+  # Stop and Delete running Docker Containers
+  - name: "DOCKER: Stop and delete running containers"
+    include_tasks:
+      file: include_stop_docker.yml
+    when: result.exists
+
+  # Delete host files
+  - name: "FILES: Delete all docker container files"
+    become: yes
+    file:
+      state: absent
+      path: "{{ docker_dir }}"
+
+  # Check if backups exist on controller
+  - name: "FILES: Check if backups exist on controller"
+    delegate_to: localhost
+    stat:
+      path: "{{ backup_dir }}"
+    register: backup_directory
+
+  # Restore backup files
+  - name: "RSYNC: Restore backups"
+    become: yes
+    synchronize:
+      mode: push
+      src: "{{ backup_dir }}"
+      dest: "{{ base_dir }}"
+      archive: true
+    when: backup_directory.stat.exists
+
+  # Copy Latest Docker Compose File
+  - name: "RSYNC: Copy Latest docker-compose file to Host"
+    become: yes
+    synchronize:
+      mode: push
+      src: "{{ config_dir }}"
+      dest: "{{ docker_dir }}"
+      archive: true
+
+  # Start Docker Containers
+  - name: "DOCKER: Create & Start Docker Containers"
+    become: yes
+    shell:
+      cmd: sudo docker compose pull && sudo docker compose up -d
+      chdir: "{{ docker_dir }}"
