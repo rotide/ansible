@@ -1,0 +1,49 @@
+# Install pre-reqs for Docker (curl, ca-certificates)
+- name: "APT Update"
+  become: yes
+  apt:
+    update_cache: yes
+
+- name: "INSTALL dependencies"
+  become: yes
+  apt:
+    pkg:
+    - curl
+    - ca-certificates
+
+# Setup Docker repository
+- name: "ADD DOCKER REPOSITORY [1 of 4]"
+  become: yes
+  shell:
+    cmd: install -m 0755 -d /etc/apt/keyrings
+
+- name: "ADD DOCKER REPOSITORY [2 of 4]"
+  become: yes
+  shell:
+    cmd: curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+
+- name: "ADD DOCKER REPOSITORY [3 of 4]"
+  become: yes
+  shell:
+    cmd: chmod a+r /etc/apt/keyrings/docker.asc
+
+- name: "ADD DOCKER REPOSITORY [4 of 4]"
+  become: yes
+  shell:
+    cmd: echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+- name: "APT Update"
+  become: yes
+  apt:
+    update_cache: yes
+
+# Install Docker
+- name: "INSTALL docker packages"
+  become: yes
+  apt:
+    pkg:
+    - docker-ce
+    - docker-ce-cli
+    - containerd.io
+    - docker-buildx-plugin
+    - docker-compose-plugin
