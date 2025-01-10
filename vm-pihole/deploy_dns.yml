@@ -1,0 +1,65 @@
+---
+- name: "DEPLOY: PiHole"
+  hosts: deploy
+
+  vars:
+    - ansible_connection: ssh
+    - ansible_user: ansible
+    - ansible_ssh_private_key_file: ~/.ssh/ansible-20250101
+    - test_var: false
+
+  tasks:
+  # Check if Docker is Installed
+  - name: "APT: Get Installed Packages"
+    package_facts:
+      manager: apt
+
+  # Install Docker
+  - name: "INSTALL: Docker [Skip if Installed]"
+    include_tasks:
+      file: include_install_docker.yml
+    when: "'docker-ce' not in ansible_facts.packages"
+
+  # Docker: Check if container is running
+  - name: "DOCKER: Check if containers are running"
+    become: yes
+    docker_container_info:
+      name: pihole
+    register: result
+
+  # Stop and Delete running Docker Containers
+  - name: "DOCKER: Stop and delete running containers"
+    include_tasks:
+      file: include_stop_docker.yml
+    when: result.exists
+
+  # Delete host files
+  - name: "FILES: Delete all docker container files"
+    become: yes
+    file:
+      state: absent
+      path: /home/rotide/docker-pihole
+
+  # Restore backup files
+  - name: "RSYNC: Restore backups"
+    become: yes
+    synchronize:
+      mode: push
+      src: /home/rotide/backups/vm-pihole/docker-pihole
+      dest: /home/rotide
+
+  # Copy Latest Docker Compose File
+  - name: "RSYNC: Copy Latest docker-compose file to Host"
+    become: yes
+    synchronize:
+      mode: push
+      src: /home/rotide/configs/vm-pihole/
+      dest: /home/rotide/docker-pihole
+      archive: true
+
+  # Start Docker Containers
+  - name: "DOCKER: Create & Start Docker Containers"
+    become: yes
+    shell:
+      cmd: sudo docker compose pull && sudo docker compose up -d
+      chdir: /home/rotide/docker-pihole
