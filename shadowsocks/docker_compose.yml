@@ -1,0 +1,10 @@
+services:
+  shadowsocks:
+    container_name: shadowsocks
+    image: shadowsocks/shadowsocks-libev:latest
+    ports:
+      - "7654:8388"
+    environment:
+      - PASSWORD=<strong_password>
+      - METHOD=chacha20-ietf-poly1305
+    restart: unless-stopped
