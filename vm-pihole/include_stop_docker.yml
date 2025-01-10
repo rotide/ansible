@@ -1,0 +1,6 @@
+# Stop and Delete running Docker Containers
+- name: "Stop and Delete Running Docker Containers"
+  become: yes
+  shell:
+    cmd: sudo docker compose stop && sudo docker compose rm -f
+    chdir: /home/rotide/docker-pihole
