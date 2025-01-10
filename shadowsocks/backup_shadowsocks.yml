@@ -1,0 +1,32 @@
+---
+- name: "BACKUP: shadowsocks"
+  gather_facts: no
+  hosts: docker_shadowsocks
+
+  vars:
+    hostname: racknerd-01
+    container_name: shadowsocks
+    base_dir: /home/rotide
+    host_docker_dir: "{{ base_dir }}/docker-{{ container_name }}"
+    controller_backup_dir: "{{ base_dir }}/backups/{{ hostname }}"
+
+  tasks:
+  - name: "DOCKER: Stop and Delete containers"
+    become: yes
+    shell:
+      cmd: sudo docker compose stop && sudo docker compose rm -f
+      chdir: "{{ host_docker_dir }}"
+
+  - name: "RSYNC: Copy files from HOST to CONTROL"
+    become: yes
+    synchronize:
+      mode: pull
+      src: "{{ host_docker_dir }}"
+      dest: "{{ controller_backup_dir }}"
+      archive: true
+
+  - name: "DOCKER: Pull and Start containers"
+    become: yes
+    shell:
+      cmd: sudo docker compose pull && sudo docker compose up -d
+      chdir: "{{ host_docker_dir }}"
