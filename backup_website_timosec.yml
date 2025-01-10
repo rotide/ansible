@@ -1,0 +1,27 @@
+---
+- name: "Backup Website: TimoSec"
+  gather_facts: no
+  hosts: docker_timosec
+
+  vars:
+
+  tasks:
+  - name: "DESTROY - timosec"
+    become: yes
+    shell:
+      cmd: sudo docker compose stop && sudo docker compose rm -f
+      chdir: /home/rotide/docker-timosec
+
+  - name: "rsync: host to control: /home/rotide/docker-timosec"
+    become: yes
+    synchronize:
+      mode: pull
+      src: "/home/rotide/docker-timosec"
+      dest: "/home/rotide/backups/racknerd-02"
+      archive: true
+
+  - name: "CREATE - timosec"
+    become: yes
+    shell:
+      cmd: sudo docker compose pull && sudo docker compose up -d
+      chdir: /home/rotide/docker-timosec
