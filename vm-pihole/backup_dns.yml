@@ -1,0 +1,29 @@
+---
+- name: "BACKUP - DNS (vm-pihole)"
+  gather_facts: no
+  hosts: backup
+
+  vars:
+    control_dir: /home/rotide/backups/vm-pihole
+    host_dir: /home/rotide/docker-pihole
+
+  tasks:
+  - name: "DESTROY: docker containers"
+    become: yes
+    shell:
+      cmd: sudo docker compose stop && sudo docker compose rm -f
+      chdir: "{{ host_dir }}"
+
+  - name: "RSYNC: host to control"
+    become: yes
+    synchronize:
+      mode: pull
+      src: "{{ host_dir }}"
+      dest: "{{ control_dir }}"
+      archive: true
+
+  - name: "CREATE: docker containers"
+    become: yes
+    shell:
+      cmd: sudo docker compose pull && sudo docker compose up -d
+      chdir: "{{ host_dir }}"
