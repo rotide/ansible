@@ -1,0 +1,68 @@
+services:
+  pihole:
+    container_name: pihole
+    hostname: vm-pihole
+    restart: always
+    image: pihole/pihole:latest
+    networks:
+      dns:
+        ipv4_address: 172.20.0.10
+    depends_on:
+      quad9-9.9.9.9:
+        condition: service_started
+      cloudflare-1.1.1.1:
+        condition: service_started
+    volumes:
+      - ./config:/etc/pihole/
+      - ./dnsmasq.d:/etc/dnsmasq.d/
+      - /etc/localtime:/etc/localtime
+    ports:
+      - '80:80'
+      - '53:53/tcp'
+      - '53:53/udp'
+    environment:
+      - ServerIP=10.0.0.2
+      - WEBPASSWORD=fjNYKZJwHN4P!a4Zk8@ExwEA%8eFxi
+      - PIHOLE_DNS_=172.20.0.21;172.20.0.22
+
+  quad9-9.9.9.9:
+    container_name: quad9-9.9.9.9
+    hostname: quad9-9.9.9.9
+    restart: always
+    image: visibilityspots/cloudflared
+    networks:
+      dns:
+        ipv4_address: 172.20.0.21
+    expose:
+      - '53/tcp'
+      - '53/udp'
+    environment:
+      - PORT=53
+      - UPSTREAM1=https://dns.quad9.net/dns-query
+      - UPSTREAM2=https://dns.quad9.net/dns-query
+    volumes:
+      - /etc/localtime:/etc/localtime
+
+  cloudflare-1.1.1.1:
+    container_name: cloudflare-1.1.1.1
+    hostname: cloudflare-1.1.1.1
+    restart: always
+    image: visibilityspots/cloudflared
+    networks:
+      dns:
+        ipv4_address: 172.20.0.22
+    expose:
+      - '53/tcp'
+      - '53/udp'
+    environment:
+      - PORT=53
+      - UPSTREAM1=https://1.1.1.1/dns-query
+      - UPSTREAM2=https://1.1.1.1/dns-query
+    volumes:
+      - /etc/localtime:/etc/localtime
+
+networks:
+  dns:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
