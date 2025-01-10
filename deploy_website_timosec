@@ -1,0 +1,21 @@
+---
+- name: "Deploy Website: TimoSec"
+  gather_facts: no
+  hosts: docker_timosec
+
+  tasks:
+  # Restore Backup - docker-compose and website files
+  - name: "RESTORE website"
+    become: yes
+    synchronize:
+      mode: push
+      src: "/home/rotide/backups/racknerd-02/docker-timosec"
+      dest: "/home/rotide"
+      archive: true
+
+  # Bring website up
+  - name: "CREATE - timosec"
+    become: yes
+    shell:
+      cmd: sudo docker compose pull && sudo docker compose up -d
+      chdir: /home/rotide/docker-timosec
