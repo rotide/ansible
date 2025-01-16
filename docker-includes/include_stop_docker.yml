@@ -1,0 +1,5 @@
+# Stop and Delete running Docker Containers
+- name: "Stop and Delete Running Docker Containers"
+  shell:
+    cmd: docker compose stop && docker compose rm -f
+    chdir: "{{ docker_dir }}"
