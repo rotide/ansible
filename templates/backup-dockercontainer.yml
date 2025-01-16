@@ -1,0 +1,36 @@
+---
+- name: "BACKUP: <container_name>"
+  gather_facts: no
+  hosts: <host>
+
+  vars:
+    container_name: <container_name>
+    base_dir: /home/rotide
+    container_dir_name: "docker-{{ container_name }}"
+    host_docker_dir: "{{ base_dir }}/{{ container_dir_name }}"
+    ctrl_backup_dir: "{{ base_dir }}/backups/"
+    logfile: "{{ ctrl_backup_dir }}{{ container_dir_name }}.log"
+
+  tasks:
+  - name: "DOCKER: Stop and Delete containers"
+    shell:
+      cmd: docker compose stop && docker compose rm -f
+      chdir: "{{ host_docker_dir }}"
+
+  - name: "RSYNC: Copy files from HOST to CONTROLLER"
+    become: yes
+    synchronize:
+      mode: pull
+      src: "{{ host_docker_dir }}"
+      dest: "{{ ctrl_backup_dir }}"
+      archive: true
+
+  - name: "DOCKER: Pull and Start containers"
+    shell:
+      cmd: docker compose pull && docker compose up -d
+      chdir: "{{ host_docker_dir }}"
+
+  - name: "LOG: Backup Timestamp"
+    delegate_to: localhost
+    shell:
+      cmd: "date >> {{ logfile }}"
