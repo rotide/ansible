@@ -12,11 +12,13 @@
     logfile: "{{ ctrl_backup_dir }}{{ container_dir_name }}.log"
 
   tasks:
+  # Stop and Delete running Docker Containers
   - name: "DOCKER: Stop and Delete containers"
-    shell:
-      cmd: docker compose stop && docker compose rm -f
-      chdir: "{{ host_docker_dir }}"
+    include_tasks:
+      file: "{{ includes_dir }}/include_stop_docker.yml"
+    when: result.exists
 
+  # Copy ALL persistent docker container files to CONTROLLER
   - name: "RSYNC: Copy files from HOST to CONTROLLER"
     become: yes
     synchronize:
@@ -25,11 +27,13 @@
       dest: "{{ ctrl_backup_dir }}"
       archive: true
 
+  # UPGRADE Containers by Pulling and Starting them again.
   - name: "DOCKER: Pull and Start containers"
     shell:
       cmd: docker compose pull && docker compose up -d
       chdir: "{{ host_docker_dir }}"
 
+  # Log a timestamp if this playbook completed without error.
   - name: "LOG: Backup Timestamp"
     delegate_to: localhost
     shell:
