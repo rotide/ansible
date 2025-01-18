@@ -1,3 +1,4 @@
+# Useage: ansible-playbook backup_docker.yml -e "host=<host> cont=<container>
 ---
 - name: "BACKUP: Docker Container [{{ cont }}@{{ host }}]"
   gather_facts: no
