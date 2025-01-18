@@ -1,0 +1,74 @@
+# Useage: ansible-playbook deploy_docker.yml -e "host=<host> cont=<container>
+---
+- name: "DEPLOY: Docker Container [{{ cont }}@{{ host }}]"
+  hosts: "{{ host }}"
+
+  vars:
+    base_dir: /home/rotide
+    container_name: "{{ cont }}"
+    container_dir_name: "docker-{{ container_name }}"
+    includes_dir: "{{ base_dir }}/playbooks/includes"
+    docker_dir: "{{ base_dir }}/{{ container_dir_name }}"
+    backup_dir: "{{ base_dir }}/backups/{{ container_dir_name }}"
+    docker_compose_dir: "{{ base_dir }}/docker-compose/{{ container_dir_name }}/"
+
+  tasks:
+  # Check if Docker is Installed
+  - name: "APT: Get Installed Packages"
+    package_facts:
+      manager: apt
+
+  # Install Docker (if not already installed)
+  - name: "INSTALL: Docker [Skip if Installed]"
+    include_tasks:
+      file: "{{ includes_dir }}/include_install_docker.yml"
+    when: "'docker-ce' not in ansible_facts.packages"
+
+  # Docker: Check if container is running
+  - name: "DOCKER: Check if containers are running"
+    docker_container_info:
+      name: "{{ container_name }}"
+    register: result
+
+  # Stop and Delete running Docker Containers
+  - name: "DOCKER: Stop and delete running containers"
+    include_tasks:
+      file: "{{ includes_dir }}/include_stop_docker.yml"
+    when: result.exists
+
+  # Delete ALL host files for this container
+  - name: "FILES: Delete all docker container files"
+    become: yes
+    file:
+      state: absent
+      path: "{{ docker_dir }}"
+
+  # Check if backups exist on controller
+  - name: "FILES: Check if backups exist on controller"
+    delegate_to: localhost
+    stat:
+      path: "{{ backup_dir }}"
+    register: backup_directory
+
+  # Restore backup files
+  - name: "RSYNC: Restore backups"
+    synchronize:
+      mode: push
+      src: "{{ backup_dir }}"
+      dest: "{{ base_dir }}"
+      archive: true
+    when: backup_directory.stat.exists
+
+  # Copy Latest Docker Compose File
+  - name: "RSYNC: Copy Latest docker-compose file to Host"
+    synchronize:
+      mode: push
+      src: "{{ docker_compose_dir }}"
+      dest: "{{ docker_dir }}"
+      archive: true
+
+  # Start Docker Containers
+  - name: "DOCKER: Create & Start Docker Containers"
+    shell:
+      cmd: docker compose pull && docker compose up -d
+      chdir: "{{ docker_dir }}"
